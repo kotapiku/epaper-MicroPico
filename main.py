@@ -5,8 +5,6 @@ import time
 import ntptime
 import urequests
 from secret import SSID, PASSWORD, OWM_API_KEY, PERSON0, PERSON1
-import framebuf2 as framebuf
-import math
 
 def connect_and_settime(ssid: str, password: str, host: str = "ntp.nict.jp"):
     wlan = network.WLAN(network.STA_IF)
@@ -18,7 +16,7 @@ def connect_and_settime(ssid: str, password: str, host: str = "ntp.nict.jp"):
         print("Waiting for connection...")
         time.sleep(1)
         cnt += 1
-        if cnt > 30:
+        if cnt > 60:
             raise RuntimeError("Failed to connect wifi")
 
     print("Network connected:", wlan.isconnected())
@@ -87,9 +85,9 @@ def draw_icon(name: str, epd: EPD_7in5_B, x: int, y: int, wh: int):
         for i in range(len(icon)):
             for j in range(wh):
                 if icon[i][j] == '1':
-                    epd.imageblack.pixel(x+i, y+j, 0x00)
+                    epd.imageblack.pixel(x+j, y+i, 0x00)
                 elif icon[i][j] == '2':
-                    epd.imagered.pixel(x+i, y+j, 0xff)
+                    epd.imagered.pixel(x+j, y+i, 0xff)
 
 # wh = 16 or 32
 def translate_weather_icon(icon: str, wh: int) -> str:
@@ -104,8 +102,8 @@ def translate_weather_icon(icon: str, wh: int) -> str:
         '04n': 'clouds',
         '09d': 'rain0',
         '09n': 'rain0',
-        '10d': 'rain0_sun',
-        '10n': 'rain0_moon',
+        '10d': 'rain1_sun',
+        '10n': 'rain1_moon',
         '11d': 'lightning',
         '11n': 'lightning',
         '13d': 'snow',
@@ -122,11 +120,10 @@ def draw_weather(epd: EPD_7in5_B, owm:OpenWeatherMap):
     temp_max = weather_data.get('main').get('temp_max')
     temp = weather_data.get('main').get('temp')
     feels_like = weather_data.get('main').get('feels_like')
-    weather = weather_data.get('weather')[0].get('main') # e.g. Rain
     weather_icon = weather_data.get('weather')[0].get('icon') # e.g. 02n
 
     print("draw weather icon: ", translate_weather_icon(weather_icon, 32))
-    draw_icon(weather_icon, epd, 15, 80, 32)
+    draw_icon(weather_icon, epd, 15, 70, 32)
 
     current_weather_string = f"{temp:.1f}{celsius} (feels like {feels_like:.1f}{celsius})"
     temp_min_max_string = f"{temp_min:.1f}{celsius} / {temp_max:.1f}{celsius}"
@@ -153,11 +150,14 @@ def draw_3hour_forecast_weather(epd: EPD_7in5_B, owm:OpenWeatherMap):
         temp = res.get('main').get('temp')
         weather = res.get('weather')[0].get('main')
         when = format_dt_txt(res.get('dt_txt'))
+        weather_icon = res.get('weather')[0].get('icon') # e.g. 02n
         print(temp, weather, when)
 
         epd.imageblack.large_text(when, x, 154, 1, 0x00)
-        weather_temp_string = f"{weather} {temp:.1f}{celsius}"
-        epd.imageblack.large_text(weather_temp_string, x, 170, 1, 0x00)
+
+        draw_icon(weather_icon, epd, x, 165, 16)
+        weather_temp_string = f"{temp:.1f}{celsius}"
+        epd.imageblack.large_text(weather_temp_string, x+16, 170, 1, 0x00)
 
 class BathInCharge:
     def __init__(self):
@@ -213,6 +213,6 @@ if __name__ == '__main__':
             epd.init()
 
     except:
-        print("sleep")
+        print("sleep and reset")
         epd.sleep()
         machine.reset() # to avoid memory allocation error
