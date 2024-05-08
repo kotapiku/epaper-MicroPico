@@ -18,7 +18,7 @@ def xbm_to_bitstring(xbm_file_path: str, width: int, height: int):
     for byte in bits_data:
         byte = byte.strip()
         if byte:
-            bitstring += '{int(byte, 16):08b}'[::-1]
+            bitstring += f'{int(byte, 16):08b}'[::-1]
 
     bit_rows = []
     for i in range(height):
