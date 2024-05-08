@@ -20,10 +20,15 @@ def xbm_to_bitstring(xbm_file_path: str, width: int, height: int):
         if byte:
             bitstring += f'{int(byte, 16):08b}'
 
-    half = width // 2
+    h = width // 8
     bit_rows = []
     for i in range(height):
-        bit_rows.append(bitstring[i*width+half:(i+1)*width] + bitstring[i*width:i*width+half])
+        row = ''
+        idx = (i+1)*height - 8
+        for _ in range(h):
+            row += bitstring[idx:idx+8]
+            idx -= 8
+        bit_rows.append(row)
 
     return bit_rows
 

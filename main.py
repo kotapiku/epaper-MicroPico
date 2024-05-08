@@ -79,42 +79,41 @@ class OpenWeatherMap:
 
 celsius = u"\u00b0" + "C"
 
-def draw_icon(name: str, epd: EPD_7in5_B, x: int, y: int):
-    with open(f'images/{name}.txt', 'r') as f:
-        icon = [list(_) for _ in f.read().split()]
-        m = int(math.sqrt(len(icon) / 64))
-        if len(icon) != (8*m)*(8*m):
-            print("invalid length of bytearray: ", len(icon), "should be ")
-            return
-        for i in range(8*m):
-            for j in range(8*m):
-                if icon[i+8*m*j] == '1':
+def draw_icon(name: str, epd: EPD_7in5_B, x: int, y: int, wh: int):
+    print(f"draw icon: images/{translate_weather_icon(name, wh)}")
+    with open(f'images/{translate_weather_icon(name, wh)}', 'r') as f:
+        icon_rows = f.read().split()
+        icon = [list(_) for _ in icon_rows]
+        for i in range(len(icon)):
+            for j in range(wh):
+                if icon[i][j] == '1':
                     epd.imageblack.pixel(x+i, y+j, 0x00)
-                elif icon[i+8*m*j] == '2':
+                elif icon[i][j] == '2':
                     epd.imagered.pixel(x+i, y+j, 0xff)
 
-def translate_weather_icon(icon: str) -> str:
+# wh = 16 or 32
+def translate_weather_icon(icon: str, wh: int) -> str:
     icon_map = {
-        '01d.png': 'sun_16_16.txt',
-        '01n.png': 'moon_16_16.txt',
-        '02d.png': 'cloud_sun_16_16.txt',
-        '02n.png': 'cloud_moon_16_16.txt',
-        '03d.png': 'cloud_16_16.txt',
-        '03n.png': 'cloud_16_16.txt',
-        '04d.png': 'clouds_16_16.txt',
-        '04n.png': 'clouds_16_16.txt',
-        '09d.png': 'rain0_16_16.txt',
-        '09n.png': 'rain0_16_16.txt',
-        '10d.png': 'rain0_sun_16_16.txt',
-        '10n.png': 'rain0_moon_16_16.txt',
-        '11d.png': 'lightning_16_16.txt',
-        '11n.png': 'lightning_16_16.txt',
-        '13d.png': 'snow_16_16.txt',
-        '13n.png': 'snow_16_16.txt',
-        '50d.png': 'mist_16_16.txt',
-        '50n.png': 'mist_16_16.txt',
+        '01d': 'sun',
+        '01n': 'moon',
+        '02d': 'cloud_sun',
+        '02n': 'cloud_moon',
+        '03d': 'cloud',
+        '03n': 'cloud',
+        '04d': 'clouds',
+        '04n': 'clouds',
+        '09d': 'rain0',
+        '09n': 'rain0',
+        '10d': 'rain0_sun',
+        '10n': 'rain0_moon',
+        '11d': 'lightning',
+        '11n': 'lightning',
+        '13d': 'snow',
+        '13n': 'snow',
+        '50d': 'mist',
+        '50n': 'mist',
     }
-    return icon_map[icon]
+    return f'{icon_map[icon]}_{wh}_{wh}.txt'
 
 
 def draw_weather(epd: EPD_7in5_B, owm:OpenWeatherMap):
@@ -126,8 +125,8 @@ def draw_weather(epd: EPD_7in5_B, owm:OpenWeatherMap):
     weather = weather_data.get('weather')[0].get('main') # e.g. Rain
     weather_icon = weather_data.get('weather')[0].get('icon') # e.g. 02n
 
-    print("draw weather icon: ", translate_weather_icon(weather_icon))
-    draw_icon(weather_icon, epd, 15, 80)
+    print("draw weather icon: ", translate_weather_icon(weather_icon, 32))
+    draw_icon(weather_icon, epd, 15, 80, 32)
 
     current_weather_string = f"{temp:.1f}{celsius} (feels like {feels_like:.1f}{celsius})"
     temp_min_max_string = f"{temp_min:.1f}{celsius} / {temp_max:.1f}{celsius}"
@@ -189,7 +188,7 @@ if __name__ == '__main__':
         # epd.imageblack.fill(0xff)
         # epd.imagered.fill(0x00)
         # print("here")
-        # draw_icon('01n', epd, 10, 10)
+        # draw_icon('01n', epd, 10, 10, 32)
         # epd.display()
         # epd.delay_ms(5000)
         # epd.sleep()
