@@ -1,10 +1,9 @@
 import sys
 import os
 import re
-from PIL import Image
 
 def xbm_to_bitstring(xbm_file_path: str, width: int, height: int):
-    if os.path.splitext(xbm_file_path)[1] != 'xbm':
+    if os.path.splitext(xbm_file_path)[1] != '.xbm':
         print(f"{xbm_file_path} is not a xbm file")
         return []
     with open(xbm_file_path, 'r') as file:
@@ -33,7 +32,7 @@ def write_to_file(path, width, height):
         for row in rows:
             print(row)
 
-        file_name = f"{os.path.splitext(os.path.basename(path)[:-4])[0]}_{width}_{height}.text"
+        file_name = f"{os.path.splitext(os.path.basename(path)[:-4])[0]}_{width}_{height}.txt"
         with open(file_name, 'w') as f:
             f.write("\n".join(rows))
             print(f"succeeded to write to {file_name}")

@@ -13,9 +13,13 @@ def connect_and_settime(ssid: str, password: str, host: str = "ntp.nict.jp"):
     wlan.active(True)
     wlan.connect(ssid, password)
 
+    cnt = 0
     while not wlan.isconnected():
         print("Waiting for connection...")
         time.sleep(1)
+        cnt += 1
+        if cnt > 30:
+            raise RuntimeError("Failed to connect wifi")
 
     print("Network connected:", wlan.isconnected())
     print("IP address:", wlan.ifconfig())
@@ -77,7 +81,7 @@ celsius = u"\u00b0" + "C"
 
 def draw_icon(name: str, epd: EPD_7in5_B, x: int, y: int):
     with open(f'images/{name}.txt', 'r') as f:
-        icon = f.read().split()
+        icon = [list(_) for _ in f.read().split()]
         m = int(math.sqrt(len(icon) / 64))
         if len(icon) != (8*m)*(8*m):
             print("invalid length of bytearray: ", len(icon), "should be ")
@@ -89,6 +93,30 @@ def draw_icon(name: str, epd: EPD_7in5_B, x: int, y: int):
                 elif icon[i+8*m*j] == '2':
                     epd.imagered.pixel(x+i, y+j, 0xff)
 
+def translate_weather_icon(icon: str) -> str:
+    icon_map = {
+        '01d.png': 'sun_16_16.txt',
+        '01n.png': 'moon_16_16.txt',
+        '02d.png': 'cloud_sun_16_16.txt',
+        '02n.png': 'cloud_moon_16_16.txt',
+        '03d.png': 'cloud_16_16.txt',
+        '03n.png': 'cloud_16_16.txt',
+        '04d.png': 'clouds_16_16.txt',
+        '04n.png': 'clouds_16_16.txt',
+        '09d.png': 'rain0_16_16.txt',
+        '09n.png': 'rain0_16_16.txt',
+        '10d.png': 'rain0_sun_16_16.txt',
+        '10n.png': 'rain0_moon_16_16.txt',
+        '11d.png': 'lightning_16_16.txt',
+        '11n.png': 'lightning_16_16.txt',
+        '13d.png': 'snow_16_16.txt',
+        '13n.png': 'snow_16_16.txt',
+        '50d.png': 'mist_16_16.txt',
+        '50n.png': 'mist_16_16.txt',
+    }
+    return icon_map[icon]
+
+
 def draw_weather(epd: EPD_7in5_B, owm:OpenWeatherMap):
     weather_data = owm.get_current_weather()
     temp_min = weather_data.get('main').get('temp_min')
@@ -98,13 +126,13 @@ def draw_weather(epd: EPD_7in5_B, owm:OpenWeatherMap):
     weather = weather_data.get('weather')[0].get('main') # e.g. Rain
     weather_icon = weather_data.get('weather')[0].get('icon') # e.g. 02n
 
-    print("draw weather icon: ", weather_icon)
+    print("draw weather icon: ", translate_weather_icon(weather_icon))
     draw_icon(weather_icon, epd, 15, 80)
 
-    current_weather_string = f"{weather} {temp:.1f}{celsius} (feels like {feels_like:.1f}{celsius})"
+    current_weather_string = f"{temp:.1f}{celsius} (feels like {feels_like:.1f}{celsius})"
     temp_min_max_string = f"{temp_min:.1f}{celsius} / {temp_max:.1f}{celsius}"
 
-    # epd.imageblack.large_text(current_weather_string, 15, 80, 2, 0x00)
+    epd.imageblack.large_text(current_weather_string, 47, 80, 2, 0x00)
     epd.imageblack.large_text(temp_min_max_string, 15, 117, 2, 0x00)
 
 
