@@ -1,6 +1,14 @@
 import sys
 from PIL import Image
 
+def color(t) -> str:
+    r, g, b = t
+    if r >= 180:
+        return '2'
+    elif (r+g+b)/3 >= 50:
+        return '1'
+    return '0'
+
 # python3 get_list_from_png.py 01d.png 16 16
 if __name__ == "__main__":
     args = sys.argv
@@ -15,17 +23,10 @@ if __name__ == "__main__":
     black = (73, 72, 74) # 1
     red = (236, 110, 76) # 2
     with Image.open(png) as im:
-        resized = im.resize((width, height), resample=Image.NEAREST)
+        resized = im.resize((width, height), resample=Image.BILINEAR)
         ret = list(resized.getdata())
         for i in range(len(ret)):
-            if ret[i][:3] == white:
-                ret[i] = '0'
-            elif ret[i][:3] == black:
-                ret[i] = '1'
-            elif ret[i][:3] == red:
-                ret[i] = '2'
-            else:
-                print("there is an invalid color: ", ret[i])
+            ret[i] = color(ret[i][:3])
         ret = [" ".join([ret[i+j*width] for i in range(width)]) for j in range(height)]
         file_name = png[:-4] + ".txt"
         with open(file_name, 'w') as f:
