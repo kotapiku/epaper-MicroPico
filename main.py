@@ -6,6 +6,10 @@ import ntptime
 import urequests
 from secret import SSID, PASSWORD, OWM_API_KEY, PERSON0, PERSON1
 
+##
+## wlan and time
+##
+
 def connect_and_settime(ssid: str, password: str, host: str = "ntp.nict.jp"):
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
@@ -23,8 +27,16 @@ def connect_and_settime(ssid: str, password: str, host: str = "ntp.nict.jp"):
     print("IP address:", wlan.ifconfig())
 
     ntptime.host = host
-    ntptime.settime()
-    print("settime")
+    try:
+        print("settime")
+        ntptime.settime()
+    except OSError as e:
+        if e.errno == 110: # when ETIMEDOUT
+            print("retry settime")
+            ntptime.settime()
+        else:
+            raise
+
 
 def local_date_time_getter(offset_min: int = 9 * 60) -> time.struct_time:
     return time.localtime(time.time() + offset_min * 60)
@@ -38,6 +50,10 @@ def draw_date_and_time(epd: EPD_7in5_B):
     print("succeeded to get date and time: ", date_string)
 
     epd.imageblack.large_text(date_string, 5, 10, 4, 0x00) # s, x, y, m, c
+
+##
+## weather
+##
 
 class OpenWeatherMap:
     def __init__(self, city, units='metric', lang='en'):
@@ -63,7 +79,7 @@ class OpenWeatherMap:
         url = f"https://api.openweathermap.org/data/2.5/weather?q={self.city}&appid={OWM_API_KEY}&units={self.units}&lang={self.lang}"
 
         res = urequests.post(url).json()
-        print("succeeded to get weather data: ", res)
+        print("succeeded to get weather data")
 
         return res
 
@@ -71,7 +87,7 @@ class OpenWeatherMap:
         url = f"https://api.openweathermap.org/data/2.5/forecast?lat={self.lat}&lon={self.lon}&units={self.units}&cnt={cnt}&appid={OWM_API_KEY}"
 
         res = urequests.post(url).json()
-        print("succeeded to get 3hour forecast data: ", res)
+        print("succeeded to get 3hour forecast data")
 
         return res
 
@@ -122,42 +138,38 @@ def draw_weather(epd: EPD_7in5_B, owm:OpenWeatherMap):
     feels_like = weather_data.get('main').get('feels_like')
     weather_icon = weather_data.get('weather')[0].get('icon') # e.g. 02n
 
-    print("draw weather icon: ", translate_weather_icon(weather_icon, 32))
     draw_icon(weather_icon, epd, 15, 70, 32)
 
     current_weather_string = f"{temp:.1f}{celsius} (feels like {feels_like:.1f}{celsius})"
-    temp_min_max_string = f"{temp_min:.1f}{celsius} / {temp_max:.1f}{celsius}"
+    temp_min_max_string = f"H:{temp_max:.1f}{celsius}  L:{temp_min:.1f}{celsius}"
 
-    epd.imageblack.large_text(current_weather_string, 47, 80, 2, 0x00)
-    epd.imageblack.large_text(temp_min_max_string, 15, 117, 2, 0x00)
+    epd.imageblack.large_text(current_weather_string, 50, 80, 2, 0x00)
+    epd.imageblack.large_text(temp_min_max_string, 20, 117, 2, 0x00)
 
 
-# "2022-03-15 15:00:00" |-> "00:00" (UTC+9)
+# "2022-03-15 16:00:00" |-> "01" (UTC+9)
 def format_dt_txt(dt_txt: str) -> str:
-    hour, min = dt_txt.split(" ")[1].split(":")[:2]
-    return "{:02d}:{}".format((int(hour)+9) % 24, min)
+    hour = dt_txt.split(" ")[1].split(":")[0]
+    return '{:02d}'.format((int(hour)+9) % 24)
 
 def draw_3hour_forecast_weather(epd: EPD_7in5_B, owm:OpenWeatherMap):
     forecast_data = owm.get_3hour_forecast_data()
 
     print("draw forecasts")
     for i, res in enumerate(forecast_data.get('list')):
-        print("i: ", i, "res: ", res)
-        x = 15+i*150
+        x = i*150
         if i != 0:
-            epd.imageblack.vline(x-8, 154, 32, 0x00) # x, y, h, c
+            epd.imageblack.vline(x, 154, 32, 0x00) # x, y, h, c
 
         temp = res.get('main').get('temp')
-        weather = res.get('weather')[0].get('main')
         when = format_dt_txt(res.get('dt_txt'))
         weather_icon = res.get('weather')[0].get('icon') # e.g. 02n
-        print(temp, weather, when)
 
-        epd.imageblack.large_text(when, x, 154, 1, 0x00)
+        epd.imageblack.large_text(when, x+70, 154, 1, 0x00)
 
-        draw_icon(weather_icon, epd, x, 165, 16)
+        draw_icon(weather_icon, epd, x+30, 154, 32)
         weather_temp_string = f"{temp:.1f}{celsius}"
-        epd.imageblack.large_text(weather_temp_string, x+16, 170, 1, 0x00)
+        epd.imageblack.large_text(weather_temp_string, x+70, 170, 1, 0x00)
 
 class BathInCharge:
     def __init__(self):
@@ -168,6 +180,10 @@ class BathInCharge:
         if current_date != self.date:
             self.person = (self.person + 1) % 2
         return self.person
+
+##
+## bath
+##
 
 def draw_bath_in_charge(epd: EPD_7in5_B, bic:BathInCharge):
     print("draw who is in charge of boiling bath")
@@ -185,14 +201,6 @@ if __name__ == '__main__':
     bic = BathInCharge()
 
     try:
-        # epd.imageblack.fill(0xff)
-        # epd.imagered.fill(0x00)
-        # print("here")
-        # draw_icon('01n', epd, 10, 10, 32)
-        # epd.display()
-        # epd.delay_ms(5000)
-        # epd.sleep()
-
         SLEEP_MINUTES = 60
         while True:
             epd.imageblack.fill(0xff)
