@@ -10,7 +10,7 @@ from secret import SSID, PASSWORD, OWM_API_KEY, PERSON0, PERSON1
 ## wlan and time
 ##
 
-def connect_and_settime(ssid: str, password: str, host: str = "ntp.nict.jp"):
+def connect_wlan_and_settime(ssid: str, password: str, host: str = "ntp.nict.jp"):
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     wlan.connect(ssid, password)
@@ -27,16 +27,23 @@ def connect_and_settime(ssid: str, password: str, host: str = "ntp.nict.jp"):
     print("IP address:", wlan.ifconfig())
 
     ntptime.host = host
-    try:
-        print("settime")
-        ntptime.settime()
-    except OSError as e:
-        if e.errno == 110: # when ETIMEDOUT
-            print("retry settime")
-            ntptime.settime()
-        else:
-            raise
 
+    for _ in range(0,10):
+        try:
+            print("settime")
+            ntptime.settime()
+        except OSError as e:
+            if e.errno == 110: # when ETIMEDOUT
+                continue
+            else:
+                raise
+        break
+
+def disconnect_wlan():
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(False)
+    wlan.deinit()
+    print("Network connected:", wlan.isconnected())
 
 def local_date_time_getter(offset_min: int = 9 * 60) -> time.struct_time:
     return time.localtime(time.time() + offset_min * 60)
@@ -176,9 +183,10 @@ class BathInCharge:
         self.date = local_date_time_getter()[2]
         self.person = 0
     def who_in_charge(self) -> int:
-        current_date = local_date_time_getter()[2]
-        if current_date != self.date:
+        date, hour = local_date_time_getter()[2:4]
+        if date != self.date and hour > 4:
             self.person = (self.person + 1) % 2
+            self.date = date
         return self.person
 
 ##
@@ -195,7 +203,7 @@ if __name__ == '__main__':
     epd = EPD_7in5_B()
     epd.Clear()
 
-    connect_and_settime(SSID, PASSWORD)
+    connect_wlan_and_settime(SSID, PASSWORD)
 
     owm = OpenWeatherMap('Tokyo')
     bic = BathInCharge()
@@ -206,19 +214,27 @@ if __name__ == '__main__':
             epd.imageblack.fill(0xff)
             epd.imagered.fill(0x00)
 
+            print("---draw date and time---")
             draw_date_and_time(epd)
+            print("---draw weather---")
             draw_weather(epd, owm)
+            print("---draw 3hour forecast weather---")
             draw_3hour_forecast_weather(epd, owm)
+            print("---draw bath in charge---")
             draw_bath_in_charge(epd, bic)
 
+            print("---display---")
             epd.display()
+            epd.delay_ms(5000)
 
-            print("sleep")
+            print("---sleep---")
+            disconnect_wlan()
             epd.sleep()
             time.sleep(SLEEP_MINUTES * 60)
 
-            print("wakeup")
+            print("---wakeup---")
             epd.init()
+            connect_wlan_and_settime(SSID, PASSWORD)
 
     except:
         print("sleep and reset")
