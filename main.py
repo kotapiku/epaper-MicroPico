@@ -192,22 +192,23 @@ def draw_3hour_forecast_weather(epd: EPD_7in5_B, owm: OpenWeatherMap):
         epd.imageblack.large_text(weather_temp_string, x + 70, 170, 1, 0x00)
 
 
+##
+## bath
+##
+
+
 class BathInCharge:
     def __init__(self):
         self.date = local_date_time_getter()[2]
-        self.person = 0
+        self.person = 1
 
     def who_in_charge(self) -> int:
         date, hour = local_date_time_getter()[2:4]
         if date != self.date and hour > 4:
+            print("change person")
             self.person = (self.person + 1) % 2
             self.date = date
         return self.person
-
-
-##
-## bath
-##
 
 
 def draw_bath_in_charge(epd: EPD_7in5_B, bic: BathInCharge):
