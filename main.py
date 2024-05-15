@@ -4,7 +4,7 @@ import network
 import time
 import ntptime
 import urequests
-from secret import SSID, PASSWORD, OWM_API_KEY, PERSON0, PERSON1
+from secret import SSID, PASSWORD, OWM_API_KEY, MEMBERS
 
 ##
 ## wlan and time
@@ -52,16 +52,30 @@ class Wlan:
         return self.wlan.isconnected()
 
 
-def local_date_time_getter(offset_min: int = 9 * 60) -> time.struct_time:
-    return time.localtime(time.time() + offset_min * 60)
+def local_date_time_getter(offset_min: int = 9 * 60) -> dict:
+    (year, month, day, hour, min, sec, weekday_num, yearday) = time.localtime(
+        time.time() + offset_min * 60
+    )
+    weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    return {
+        "year": year,
+        "month": month,
+        "day": day,
+        "hour": hour,
+        "min": min,
+        "sec": sec,
+        "weekday": weekdays[weekday_num],
+        "yearday": yearday,
+    }
 
 
 def draw_date_and_time(epd: EPD_7in5_B):
-    (year, month, day, hour, min, _, weekday_num, _) = local_date_time_getter()
+    time_info = local_date_time_getter()
 
-    weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     date_string = (
-        f"{year}-{month:02d}-{day:02d} ({weekdays[weekday_num]}) {hour:02d}:{min:02d}"
+        "{year}-{month:02d}-{day:02d} ({weekday}) {hour:02d}:{min:02d}".format(
+            **time_info
+        )
     )
     print("succeeded to get date and time: ", date_string)
 
@@ -110,16 +124,13 @@ class OpenWeatherMap:
         return res
 
 
-celsius = "\u00b0" + "C"
-
-
-def draw_icon(name: str, epd: EPD_7in5_B, x: int, y: int, wh: int):
-    print(f"draw icon: images/{translate_weather_icon(name, wh)}")
-    with open(f"images/{translate_weather_icon(name, wh)}", "r") as f:
+def draw_icon(name: str, epd: EPD_7in5_B, x: int, y: int):
+    print(f"draw icon: images/{name}")
+    with open(f"images/{name}", "r") as f:
         icon_rows = f.read().split()
         icon = [list(_) for _ in icon_rows]
         for i in range(len(icon)):
-            for j in range(wh):
+            for j in range(len(icon[0])):
                 if icon[i][j] == "1":
                     epd.imageblack.pixel(x + j, y + i, 0x00)
                 elif icon[i][j] == "2":
@@ -156,18 +167,17 @@ def draw_weather(epd: EPD_7in5_B, owm: OpenWeatherMap):
     temp_min = weather_data.get("main").get("temp_min")
     temp_max = weather_data.get("main").get("temp_max")
     temp = weather_data.get("main").get("temp")
-    feels_like = weather_data.get("main").get("feels_like")
     weather_icon = weather_data.get("weather")[0].get("icon")  # e.g. 02n
 
-    draw_icon(weather_icon, epd, 15, 70, 32)
+    draw_icon(translate_weather_icon(weather_icon, 32), epd, 15, 70)
 
-    current_weather_string = (
-        f"{temp:.1f}{celsius} (feels like {feels_like:.1f}{celsius})"
-    )
-    temp_min_max_string = f"H:{temp_max:.1f}{celsius}  L:{temp_min:.1f}{celsius}"
+    current_weather_string = f"{temp:.1f}"
 
     epd.imageblack.large_text(current_weather_string, 50, 80, 2, 0x00)
-    epd.imageblack.large_text(temp_min_max_string, 20, 117, 2, 0x00)
+    draw_icon("degree_32_32.txt", epd, 50 + 16 * 4, 80)
+    epd.imageblack.large_text(f"H:{temp_max:.1f}  L:{temp_min:.1f}", 20, 117, 2, 0x00)
+    draw_icon("degree_32_32.txt", epd, 20 + 16 * 6, 117)
+    draw_icon("degree_32_32.txt", epd, 20 + 16 * 14, 117)
 
 
 # "2022-03-15 16:00:00" |-> "01" (UTC+9)
@@ -191,9 +201,10 @@ def draw_3hour_forecast_weather(epd: EPD_7in5_B, owm: OpenWeatherMap):
 
         epd.imageblack.large_text(when, x + 70, 154, 1, 0x00)
 
-        draw_icon(weather_icon, epd, x + 30, 154, 32)
-        weather_temp_string = f"{temp:.1f}{celsius}"
+        draw_icon(translate_weather_icon(weather_icon, 32), epd, x + 30, 154)
+        weather_temp_string = f"{temp:.1f}"
         epd.imageblack.large_text(weather_temp_string, x + 70, 170, 1, 0x00)
+        draw_icon("degree_16_16.txt", epd, x + 70 + 8 * 4, 170)
 
 
 ##
@@ -203,22 +214,20 @@ def draw_3hour_forecast_weather(epd: EPD_7in5_B, owm: OpenWeatherMap):
 
 class BathInCharge:
     def __init__(self):
-        self.date = local_date_time_getter()[2]
-        self.person = 1
+        self.members = MEMBERS
 
-    def who_in_charge(self) -> int:
-        date, hour = local_date_time_getter()[2:4]
-        if date != self.date and hour > 4:
-            print("change person")
-            self.person = (self.person + 1) % 2
-            self.date = date
-        return self.person
+    def who_in_charge(self) -> str:
+        time_info = local_date_time_getter()
+        idx = (time_info["yearday"] - (1 if time_info["hour"] < 4 else 0)) % len(
+            MEMBERS
+        )
+        return self.members[idx]
 
 
 def draw_bath_in_charge(epd: EPD_7in5_B, bic: BathInCharge):
     print("draw who is in charge of boiling bath")
-    person_string = [PERSON0, PERSON1][bic.who_in_charge()]
-    epd.imageblack.large_text(f"bath: {person_string}", 15, 200, 2, 0x00)
+    person_string = bic.who_in_charge()
+    epd.imageblack.large_text(f"bath: {person_string}", 20, 210, 2, 0x00)
 
 
 ##
@@ -261,7 +270,6 @@ if __name__ == "__main__":
             print("---draw date and time---")
             draw_date_and_time(epd)
             print("---draw weather---")
-            print(wlan.isconnected())
             draw_weather(epd, owm)
             print("---draw 3hour forecast weather---")
             draw_3hour_forecast_weather(epd, owm)
@@ -272,7 +280,7 @@ if __name__ == "__main__":
             epd.display()
             epd.delay_ms(5000)
 
-            print("---font---")
+            # print("---font---")
             # draw_font(epd, "あはは", 15, 300, 1)
 
             print("---sleep---")
