@@ -11,41 +11,45 @@ from secret import SSID, PASSWORD, OWM_API_KEY, PERSON0, PERSON1
 ##
 
 
-def connect_wlan_and_settime(ssid: str, password: str, host: str = "ntp.nict.jp"):
-    wlan = network.WLAN(network.STA_IF)
-    wlan.active(True)
-    wlan.connect(ssid, password)
+class Wlan:
+    def __init__(self):
+        self.wlan = network.WLAN(network.STA_IF)
+        self.wlan.active(True)
 
-    cnt = 0
-    while not wlan.isconnected():
-        print("Waiting for connection...")
-        time.sleep(1)
-        cnt += 1
-        if cnt > 60:
-            raise RuntimeError("Failed to connect wifi")
+    def connect(
+        self, ssid: str = SSID, password: str = PASSWORD, host: str = "ntp.nict.jp"
+    ):
+        self.wlan.connect(ssid, password)
+        cnt = 0
+        while not self.wlan.isconnected():
+            print("Waiting for connection...")
+            time.sleep(1)
+            cnt += 1
+            if cnt > 60:
+                raise RuntimeError("Failed to connect wifi")
+        print("Network connected:", self.wlan.isconnected())
+        print("IP address:", self.wlan.ifconfig())
 
-    print("Network connected:", wlan.isconnected())
-    print("IP address:", wlan.ifconfig())
+        ntptime.host = host
 
-    ntptime.host = host
+        for _ in range(0, 10):
+            try:
+                print("settime")
+                ntptime.settime()
+            except OSError as e:
+                if e.errno == 110:  # when ETIMEDOUT
+                    continue
+                else:
+                    raise
+            break
 
-    for _ in range(0, 10):
-        try:
-            print("settime")
-            ntptime.settime()
-        except OSError as e:
-            if e.errno == 110:  # when ETIMEDOUT
-                continue
-            else:
-                raise
-        break
+    def disconnect(self):
+        self.wlan.active(False)
+        self.wlan.deinit()
+        print("Network connected:", self.wlan.isconnected())
 
-
-def disconnect_wlan():
-    wlan = network.WLAN(network.STA_IF)
-    wlan.active(False)
-    wlan.deinit()
-    print("Network connected:", wlan.isconnected())
+    def isconnected(self):
+        return self.wlan.isconnected()
 
 
 def local_date_time_getter(offset_min: int = 9 * 60) -> time.struct_time:
@@ -217,11 +221,33 @@ def draw_bath_in_charge(epd: EPD_7in5_B, bic: BathInCharge):
     epd.imageblack.large_text(f"bath: {person_string}", 15, 200, 2, 0x00)
 
 
+##
+## font
+##
+
+
+# def draw_font(epd: EPD_7in5_B, txt: str, x: int, y: int, m: int):
+#     mf = MisakiFont()
+#     for s in txt:
+#         print(s)
+#         d = mf.font(ord(s))
+
+#         for col in range(0, 7):
+#             for row in range(0, 7):
+#                 if (0x80 >> col) & d[row]:
+#                     if m == 1:
+#                         epd.imageblack.pixel(x + col, y + row, 0x00)
+#                     else:
+#                         epd.imageblack.fill_rect(x + col * m, y + row * m, m, m, 0x00)
+#         x += 8
+
+
 if __name__ == "__main__":
     epd = EPD_7in5_B()
     epd.Clear()
 
-    connect_wlan_and_settime(SSID, PASSWORD)
+    wlan = Wlan()
+    wlan.connect()
 
     owm = OpenWeatherMap("Tokyo")
     bic = BathInCharge()
@@ -235,6 +261,7 @@ if __name__ == "__main__":
             print("---draw date and time---")
             draw_date_and_time(epd)
             print("---draw weather---")
+            print(wlan.isconnected())
             draw_weather(epd, owm)
             print("---draw 3hour forecast weather---")
             draw_3hour_forecast_weather(epd, owm)
@@ -245,14 +272,17 @@ if __name__ == "__main__":
             epd.display()
             epd.delay_ms(5000)
 
+            print("---font---")
+            # draw_font(epd, "あはは", 15, 300, 1)
+
             print("---sleep---")
-            disconnect_wlan()
+            wlan.disconnect()
             epd.sleep()
             time.sleep(SLEEP_MINUTES * 60)
 
             print("---wakeup---")
             epd.init()
-            connect_wlan_and_settime(SSID, PASSWORD)
+            wlan.connect()
 
     except:
         print("sleep and reset")
