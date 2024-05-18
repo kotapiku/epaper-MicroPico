@@ -4,7 +4,7 @@ import network
 import time
 import ntptime
 import urequests
-from secret import SSID, PASSWORD, OWM_API_KEY, MEMBERS
+from secret import SSID, PASSWORD, OWM_API_KEY, BATH_MEMBERS, LAT, LON, trash_map
 
 ##
 ## wlan and time
@@ -52,11 +52,13 @@ class Wlan:
         return self.wlan.isconnected()
 
 
+weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
 def local_date_time_getter(offset_min: int = 9 * 60) -> dict:
     (year, month, day, hour, min, sec, weekday_num, yearday) = time.localtime(
         time.time() + offset_min * 60
     )
-    weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     return {
         "year": year,
         "month": month,
@@ -64,6 +66,7 @@ def local_date_time_getter(offset_min: int = 9 * 60) -> dict:
         "hour": hour,
         "min": min,
         "sec": sec,
+        "weekday_num": weekday_num,
         "weekday": weekdays[weekday_num],
         "yearday": yearday,
     }
@@ -79,7 +82,7 @@ def draw_date_and_time(epd: EPD_7in5_B):
     )
     print("succeeded to get date and time: ", date_string)
 
-    epd.imageblack.large_text(date_string, 5, 10, 4, 0x00)  # s, x, y, m, c
+    epd.imageblack.large_text(date_string, 20, 10, 4, 0x00)  # s, x, y, m, c
 
 
 ##
@@ -92,20 +95,8 @@ class OpenWeatherMap:
         self.city = city
         self.units = units
         self.lang = lang
-
-        # set latitude and longitude
-        try:
-            url = f"https://api.openweathermap.org/geo/1.0/direct?q={city}&appid={OWM_API_KEY}"
-            print("request: ", url)
-            res = urequests.post(url).json()  # TODO: 405 error occur
-            print("geo info: ", res)
-
-            self.lat = res[0].get("lat")
-            self.lon = res[0].get("lon")
-        except:
-            self.lat = 35.6828387  # Tokyo
-            self.lon = 139.7594549
-        print("lat: ", self.lat, "lon: ", self.lon)
+        self.lat = LAT
+        self.lon = LON
 
     def get_current_weather(self):
         url = f"https://api.openweathermap.org/data/2.5/weather?q={self.city}&appid={OWM_API_KEY}&units={self.units}&lang={self.lang}"
@@ -124,7 +115,7 @@ class OpenWeatherMap:
         return res
 
 
-def draw_icon(name: str, epd: EPD_7in5_B, x: int, y: int):
+def draw_icon(name: str, epd: EPD_7in5_B, x: int, y: int, m: int = 1):
     print(f"draw icon: images/{name}")
     with open(f"images/{name}", "r") as f:
         icon_rows = f.read().split()
@@ -132,9 +123,15 @@ def draw_icon(name: str, epd: EPD_7in5_B, x: int, y: int):
         for i in range(len(icon)):
             for j in range(len(icon[0])):
                 if icon[i][j] == "1":
-                    epd.imageblack.pixel(x + j, y + i, 0x00)
+                    if m == 1:
+                        epd.imageblack.pixel(x + j, y + i, 0x00)
+                    else:
+                        epd.imageblack.fill_rect(x + j * m, y + i * m, m, m, 0x00)
                 elif icon[i][j] == "2":
-                    epd.imagered.pixel(x + j, y + i, 0xFF)
+                    if m == 1:
+                        epd.imagered.pixel(x + j, y + i, 0xFF)
+                    else:
+                        epd.imagered.fill_rect(x + j * m, y + i * m, m, m, 0xFF)
 
 
 # wh = 16 or 32
@@ -169,15 +166,15 @@ def draw_weather(epd: EPD_7in5_B, owm: OpenWeatherMap):
     temp = weather_data.get("main").get("temp")
     weather_icon = weather_data.get("weather")[0].get("icon")  # e.g. 02n
 
-    draw_icon(translate_weather_icon(weather_icon, 32), epd, 15, 70)
+    draw_icon(translate_weather_icon(weather_icon, 32), epd, 15, 70, 2)
 
     current_weather_string = f"{temp:.1f}"
 
-    epd.imageblack.large_text(current_weather_string, 50, 80, 2, 0x00)
-    draw_icon("degree_32_32.txt", epd, 50 + 16 * 4, 80)
-    epd.imageblack.large_text(f"H:{temp_max:.1f}  L:{temp_min:.1f}", 20, 117, 2, 0x00)
-    draw_icon("degree_32_32.txt", epd, 20 + 16 * 6, 117)
-    draw_icon("degree_32_32.txt", epd, 20 + 16 * 14, 117)
+    epd.imageblack.large_text(current_weather_string, 90, 85, 4, 0x00)
+    draw_icon("degree_32_32.txt", epd, 90 + 32 * 4, 85, 2)
+    epd.imageblack.large_text(f"H:{temp_max:.1f}  L:{temp_min:.1f}", 20, 149, 2, 0x00)
+    draw_icon("degree_32_32.txt", epd, 20 + 16 * 6, 149)
+    draw_icon("degree_32_32.txt", epd, 20 + 16 * 14, 149)
 
 
 # "2022-03-15 16:00:00" |-> "01" (UTC+9)
@@ -193,18 +190,17 @@ def draw_3hour_forecast_weather(epd: EPD_7in5_B, owm: OpenWeatherMap):
     for i, res in enumerate(forecast_data.get("list")):
         x = i * 150
         if i != 0:
-            epd.imageblack.vline(x, 154, 32, 0x00)  # x, y, h, c
+            epd.imageblack.vline(x, 195, 32, 0x00)  # x, y, h, c
 
         temp = res.get("main").get("temp")
         when = format_dt_txt(res.get("dt_txt"))
         weather_icon = res.get("weather")[0].get("icon")  # e.g. 02n
 
-        epd.imageblack.large_text(when, x + 70, 154, 1, 0x00)
-
-        draw_icon(translate_weather_icon(weather_icon, 32), epd, x + 30, 154)
+        draw_icon(translate_weather_icon(weather_icon, 32), epd, x + 30, 200)
+        epd.imageblack.large_text(when, x + 70, 200, 1, 0x00)
         weather_temp_string = f"{temp:.1f}"
-        epd.imageblack.large_text(weather_temp_string, x + 70, 170, 1, 0x00)
-        draw_icon("degree_16_16.txt", epd, x + 70 + 8 * 4, 170)
+        epd.imageblack.large_text(weather_temp_string, x + 70, 216, 1, 0x00)
+        draw_icon("degree_16_16.txt", epd, x + 70 + 8 * 4, 216)
 
 
 ##
@@ -212,43 +208,31 @@ def draw_3hour_forecast_weather(epd: EPD_7in5_B, owm: OpenWeatherMap):
 ##
 
 
-class BathInCharge:
-    def __init__(self):
-        self.offset = 0
-
-    def who_in_charge(self) -> str:
-        time_info = local_date_time_getter()
-        idx = (
-            time_info["yearday"] + self.offset - (1 if time_info["hour"] < 4 else 0)
-        ) % len(MEMBERS)
-        return MEMBERS[idx]
+def who_in_charge() -> str:
+    time_info = local_date_time_getter()
+    day_num = (time.time() - 9 * 60 * 60) // (
+        24 * 60 * 60
+    )  # day numbers from 1970-1-1 9:00 UTC
+    idx = (day_num - (1 if time_info["hour"] < 4 else 0)) % len(BATH_MEMBERS)
+    return BATH_MEMBERS[idx]
 
 
-def draw_bath_in_charge(epd: EPD_7in5_B, bic: BathInCharge):
+def draw_bath_in_charge(epd: EPD_7in5_B):
     print("draw who is in charge of boiling bath")
-    person_string = bic.who_in_charge()
-    epd.imageblack.large_text(f"bath: {person_string}", 20, 210, 2, 0x00)
+    person_string = who_in_charge()
+    epd.imageblack.large_text(f"bath: {person_string}", 20, 260, 2, 0x00)
 
 
-##
-## font
-##
-
-
-# def draw_font(epd: EPD_7in5_B, txt: str, x: int, y: int, m: int):
-#     mf = MisakiFont()
-#     for s in txt:
-#         print(s)
-#         d = mf.font(ord(s))
-
-#         for col in range(0, 7):
-#             for row in range(0, 7):
-#                 if (0x80 >> col) & d[row]:
-#                     if m == 1:
-#                         epd.imageblack.pixel(x + col, y + row, 0x00)
-#                     else:
-#                         epd.imageblack.fill_rect(x + col * m, y + row * m, m, m, 0x00)
-#         x += 8
+def draw_trash(epd: EPD_7in5_B):
+    time_info = local_date_time_getter()
+    if time_info["hour"] > 8:
+        time_info = local_date_time_getter(60 * 24)
+    trash = trash_map(
+        time_info["day"],
+        time_info["weekday_num"],
+    )
+    if trash:
+        epd.imageblack.large_text(f"trash: {trash}", 20, 290, 2, 0x00)
 
 
 epd = EPD_7in5_B()
@@ -259,7 +243,6 @@ wlan = Wlan()
 wlan.connect()
 
 owm = OpenWeatherMap("Tokyo")
-bic = BathInCharge()
 
 
 epd.imageblack.fill(0xFF)
@@ -272,14 +255,13 @@ draw_weather(epd, owm)
 print("---draw 3hour forecast weather---")
 draw_3hour_forecast_weather(epd, owm)
 print("---draw bath in charge---")
-draw_bath_in_charge(epd, bic)
+draw_bath_in_charge(epd)
+print("---draw trash day---")
+draw_trash(epd)
 
 print("---display---")
 epd.display()
 epd.delay_ms(5000)
-
-# print("---font---")
-# draw_font(epd, "あはは", 15, 300, 1)
 
 SLEEP_MINUTES = 60 - local_date_time_getter()["min"]
 
