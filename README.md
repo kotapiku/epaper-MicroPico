@@ -2,6 +2,8 @@
 
 This project is a library for displaying date, weather, bath cleaning duty, and trash collection days using a Raspberry Pi Pico and a Waveshare 7.5-inch ePaper (black, white, red) display.
 
+![image](https://github.com/kotapiku/epaper-MicroPico/assets/25437132/ac5f77cf-3973-461f-8ce2-63c9965a58c9)
+
 ## Features
 
 - Display date and weather
