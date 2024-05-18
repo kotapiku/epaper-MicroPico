@@ -214,14 +214,14 @@ def draw_3hour_forecast_weather(epd: EPD_7in5_B, owm: OpenWeatherMap):
 
 class BathInCharge:
     def __init__(self):
-        self.members = MEMBERS
+        self.offset = 0
 
     def who_in_charge(self) -> str:
         time_info = local_date_time_getter()
-        idx = (time_info["yearday"] - (1 if time_info["hour"] < 4 else 0)) % len(
-            MEMBERS
-        )
-        return self.members[idx]
+        idx = (
+            time_info["yearday"] + self.offset - (1 if time_info["hour"] < 4 else 0)
+        ) % len(MEMBERS)
+        return MEMBERS[idx]
 
 
 def draw_bath_in_charge(epd: EPD_7in5_B, bic: BathInCharge):
@@ -251,48 +251,39 @@ def draw_bath_in_charge(epd: EPD_7in5_B, bic: BathInCharge):
 #         x += 8
 
 
-if __name__ == "__main__":
-    epd = EPD_7in5_B()
-    epd.Clear()
+epd = EPD_7in5_B()
+epd.Clear()
 
-    wlan = Wlan()
-    wlan.connect()
+machine.Pin(23, machine.Pin.OUT).high()
+wlan = Wlan()
+wlan.connect()
 
-    owm = OpenWeatherMap("Tokyo")
-    bic = BathInCharge()
+owm = OpenWeatherMap("Tokyo")
+bic = BathInCharge()
 
-    try:
-        SLEEP_MINUTES = 60
-        while True:
-            epd.imageblack.fill(0xFF)
-            epd.imagered.fill(0x00)
 
-            print("---draw date and time---")
-            draw_date_and_time(epd)
-            print("---draw weather---")
-            draw_weather(epd, owm)
-            print("---draw 3hour forecast weather---")
-            draw_3hour_forecast_weather(epd, owm)
-            print("---draw bath in charge---")
-            draw_bath_in_charge(epd, bic)
+epd.imageblack.fill(0xFF)
+epd.imagered.fill(0x00)
 
-            print("---display---")
-            epd.display()
-            epd.delay_ms(5000)
+print("---draw date and time---")
+draw_date_and_time(epd)
+print("---draw weather---")
+draw_weather(epd, owm)
+print("---draw 3hour forecast weather---")
+draw_3hour_forecast_weather(epd, owm)
+print("---draw bath in charge---")
+draw_bath_in_charge(epd, bic)
 
-            # print("---font---")
-            # draw_font(epd, "あはは", 15, 300, 1)
+print("---display---")
+epd.display()
+epd.delay_ms(5000)
 
-            print("---sleep---")
-            wlan.disconnect()
-            epd.sleep()
-            time.sleep(SLEEP_MINUTES * 60)
+# print("---font---")
+# draw_font(epd, "あはは", 15, 300, 1)
 
-            print("---wakeup---")
-            epd.init()
-            wlan.connect()
+SLEEP_MINUTES = 60 - local_date_time_getter()["min"]
 
-    except:
-        print("sleep and reset")
-        epd.sleep()
-        machine.reset()  # to avoid memory allocation error
+print("---sleep---")
+wlan.disconnect()
+machine.Pin(23, machine.Pin.OUT).low()
+machine.deepsleep(SLEEP_MINUTES * 60 * 1000)
