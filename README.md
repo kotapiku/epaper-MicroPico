@@ -5,8 +5,9 @@ This project is a library for displaying date, weather, bath cleaning duty, and 
 ## Features
 
 - Display date and weather
-- Manage bath cleaning duty
-- Notify trash collection days
+- Display bath cleaning duty
+- Display trash collection days
+- Update the screen every hour
 
 ## Weather Icons
 
