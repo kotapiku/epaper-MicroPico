@@ -2,6 +2,8 @@
 
 This project is a library for displaying date, weather, bath cleaning duty, and trash collection days using a Raspberry Pi Pico and a Waveshare 7.5-inch ePaper (black, white, red) display.
 
+![image](https://github.com/kotapiku/epaper-MicroPico/assets/25437132/ac5f77cf-3973-461f-8ce2-63c9965a58c9)
+
 ## Features
 
 - Display date and weather
@@ -32,8 +34,8 @@ Example of `secret.py`:
 SSID = "ssid"
 PASSWORD = "password"
 OWM_API_KEY = "API key"
-LAT = 35.6828387  # Tokyo
-LON = 139.7594549
+LAT = 35.6764  # Tokyo
+LON = 139.6500
 BATH_MEMBERS = ["person 1", "person 2"]
 
 # Function to return trash type based on the day of the week
