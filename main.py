@@ -209,7 +209,7 @@ def draw_3hour_forecast_weather(epd: EPD_7in5_B, owm: OpenWeatherMap):
 
 
 def who_in_charge() -> str:
-    local_time = time.localtime()
+    local_time = time.localtime(time.time() + 9 * 60 * 60)
     hour = local_time[3]
     seconds_from_2000 = time.mktime(local_time)
     day_num = seconds_from_2000 // (24 * 60 * 60)  # day numbers from 2000-1-1
@@ -268,4 +268,4 @@ SLEEP_MINUTES = 60 - local_date_time_getter()["min"]
 print("---sleep---")
 wlan.disconnect()
 machine.Pin(23, machine.Pin.OUT).low()
-# machine.deepsleep(SLEEP_MINUTES * 60 * 1000)
+machine.deepsleep(SLEEP_MINUTES * 60 * 1000)
