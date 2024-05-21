@@ -198,7 +198,7 @@ def draw_3hour_forecast_weather(epd: EPD_7in5_B, owm: OpenWeatherMap, x: int, y:
         when = format_dt_txt(res.get("dt_txt"))
         weather_icon = res.get("weather")[0].get("icon")  # e.g. 02n
 
-        draw_icon(translate_weather_icon(weather_icon, 32), epd, xx + 50, y + 5, 2)
+        draw_icon(translate_weather_icon(weather_icon, 32), epd, xx + 50, y, 2)
         epd.imageblack.large_text(when, xx + 122, y + 10, 2, 0x00)
         weather_temp_string = f"{temp:.1f}"
         epd.imageblack.large_text(weather_temp_string, xx + 122, y + 34, 2, 0x00)
@@ -251,15 +251,15 @@ epd.imageblack.fill(0xFF)
 epd.imagered.fill(0x00)
 
 print("---draw date and time---")
-draw_date_and_time(epd, 20, 70)
+draw_date_and_time(epd, 40, 70)
 print("---draw weather---")
-draw_weather(epd, owm, 15, 130)
+draw_weather(epd, owm, 40, 130)
 print("---draw 3hour forecast weather---")
-draw_3hour_forecast_weather(epd, owm, 0, 255)
+draw_3hour_forecast_weather(epd, owm, 20, 255)
 print("---draw bath in charge---")
-draw_bath_in_charge(epd, 20, 340)
+draw_bath_in_charge(epd, 40, 340)
 print("---draw trash day---")
-draw_trash(epd, 20, 385)
+draw_trash(epd, 40, 385)
 
 print("---display---")
 epd.display()
