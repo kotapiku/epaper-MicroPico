@@ -72,7 +72,7 @@ def local_date_time_getter(offset_min: int = 9 * 60) -> dict:
     }
 
 
-def draw_date_and_time(epd: EPD_7in5_B):
+def draw_date_and_time(epd: EPD_7in5_B, x: int, y: int):
     time_info = local_date_time_getter()
 
     date_string = (
@@ -82,7 +82,7 @@ def draw_date_and_time(epd: EPD_7in5_B):
     )
     print("succeeded to get date and time: ", date_string)
 
-    epd.imageblack.large_text(date_string, 20, 10, 4, 0x00)  # s, x, y, m, c
+    epd.imageblack.large_text(date_string, x, y, 4, 0x00)  # s, x, y, m, c
 
 
 ##
@@ -159,22 +159,24 @@ def translate_weather_icon(icon: str, wh: int) -> str:
     return f"{icon_map[icon]}_{wh}_{wh}.txt"
 
 
-def draw_weather(epd: EPD_7in5_B, owm: OpenWeatherMap):
+def draw_weather(epd: EPD_7in5_B, owm: OpenWeatherMap, x: int, y: int):
     weather_data = owm.get_current_weather()
     temp_min = weather_data.get("main").get("temp_min")
     temp_max = weather_data.get("main").get("temp_max")
     temp = weather_data.get("main").get("temp")
     weather_icon = weather_data.get("weather")[0].get("icon")  # e.g. 02n
 
-    draw_icon(translate_weather_icon(weather_icon, 32), epd, 15, 70, 2)
+    draw_icon(translate_weather_icon(weather_icon, 32), epd, x, y, 2)
 
     current_weather_string = f"{temp:.1f}"
 
-    epd.imageblack.large_text(current_weather_string, 90, 85, 4, 0x00)
-    draw_icon("degree_32_32.txt", epd, 90 + 32 * 4, 85, 2)
-    epd.imageblack.large_text(f"H:{temp_max:.1f}  L:{temp_min:.1f}", 20, 149, 2, 0x00)
-    draw_icon("degree_32_32.txt", epd, 20 + 16 * 6, 149)
-    draw_icon("degree_32_32.txt", epd, 20 + 16 * 14, 149)
+    epd.imageblack.large_text(current_weather_string, x + 75, y + 15, 4, 0x00)
+    draw_icon("degree_32_32.txt", epd, x + 75 + 32 * 4, y + 15, 2)
+    epd.imageblack.large_text(
+        f"H:{temp_max:.1f}  L:{temp_min:.1f}", x + 5, y + 79, 2, 0x00
+    )
+    draw_icon("degree_32_32.txt", epd, x + 5 + 16 * 6, y + 79)
+    draw_icon("degree_32_32.txt", epd, x + 5 + 16 * 14, y + 70)
 
 
 # "2022-03-15 16:00:00" |-> "01" (UTC+9)
@@ -183,24 +185,24 @@ def format_dt_txt(dt_txt: str) -> str:
     return "{:02d}".format((int(hour) + 9) % 24)
 
 
-def draw_3hour_forecast_weather(epd: EPD_7in5_B, owm: OpenWeatherMap):
+def draw_3hour_forecast_weather(epd: EPD_7in5_B, owm: OpenWeatherMap, x: int, y: int):
     forecast_data = owm.get_3hour_forecast_data()
 
     print("draw forecasts")
     for i, res in enumerate(forecast_data.get("list")):
-        x = i * 250
+        xx = x + i * 250
         if i != 0:
-            epd.imageblack.vline(x, 195, 64, 0x00)  # x, y, h, c
+            epd.imageblack.vline(xx, y, 64, 0x00)  # x, y, h, c
 
         temp = res.get("main").get("temp")
         when = format_dt_txt(res.get("dt_txt"))
         weather_icon = res.get("weather")[0].get("icon")  # e.g. 02n
 
-        draw_icon(translate_weather_icon(weather_icon, 32), epd, x + 50, 200, 2)
-        epd.imageblack.large_text(when, x + 122, 205, 2, 0x00)
+        draw_icon(translate_weather_icon(weather_icon, 32), epd, xx + 50, y + 5, 2)
+        epd.imageblack.large_text(when, xx + 122, y + 10, 2, 0x00)
         weather_temp_string = f"{temp:.1f}"
-        epd.imageblack.large_text(weather_temp_string, x + 122, 229, 2, 0x00)
-        draw_icon("degree_16_16.txt", epd, x + 122 + 16 * 4, 229, 2)
+        epd.imageblack.large_text(weather_temp_string, xx + 122, y + 34, 2, 0x00)
+        draw_icon("degree_16_16.txt", epd, xx + 122 + 16 * 4, y + 34, 2)
 
 
 ##
@@ -217,13 +219,13 @@ def who_in_charge() -> str:
     return BATH_MEMBERS[idx]
 
 
-def draw_bath_in_charge(epd: EPD_7in5_B):
+def draw_bath_in_charge(epd: EPD_7in5_B, x: int, y: int):
     print("draw who is in charge of boiling bath")
     person_string = who_in_charge()
-    epd.imageblack.large_text(f"Bath  {person_string}", 20, 280, 3, 0x00)
+    epd.imageblack.large_text(f"Bath  {person_string}", x, y, 3, 0x00)
 
 
-def draw_trash(epd: EPD_7in5_B):
+def draw_trash(epd: EPD_7in5_B, x: int, y: int):
     time_info = local_date_time_getter()
     if time_info["hour"] > 8:
         time_info = local_date_time_getter(60 * 24)
@@ -232,7 +234,7 @@ def draw_trash(epd: EPD_7in5_B):
         time_info["weekday_num"],
     )
     if trash:
-        epd.imageblack.large_text(f"Trash {trash}", 20, 325, 3, 0x00)
+        epd.imageblack.large_text(f"Trash {trash}", x, y, 3, 0x00)
 
 
 epd = EPD_7in5_B()
@@ -249,15 +251,15 @@ epd.imageblack.fill(0xFF)
 epd.imagered.fill(0x00)
 
 print("---draw date and time---")
-draw_date_and_time(epd)
+draw_date_and_time(epd, 20, 70)
 print("---draw weather---")
-draw_weather(epd, owm)
+draw_weather(epd, owm, 15, 130)
 print("---draw 3hour forecast weather---")
-draw_3hour_forecast_weather(epd, owm)
+draw_3hour_forecast_weather(epd, owm, 0, 255)
 print("---draw bath in charge---")
-draw_bath_in_charge(epd)
+draw_bath_in_charge(epd, 20, 340)
 print("---draw trash day---")
-draw_trash(epd)
+draw_trash(epd, 20, 385)
 
 print("---display---")
 epd.display()
