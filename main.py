@@ -106,7 +106,7 @@ class OpenWeatherMap:
 
         return res
 
-    def get_3hour_forecast_data(self, cnt=5):
+    def get_3hour_forecast_data(self, cnt=3):
         url = f"https://api.openweathermap.org/data/2.5/forecast?lat={self.lat}&lon={self.lon}&units={self.units}&cnt={cnt}&appid={OWM_API_KEY}"
 
         res = urequests.post(url).json()
@@ -188,19 +188,19 @@ def draw_3hour_forecast_weather(epd: EPD_7in5_B, owm: OpenWeatherMap):
 
     print("draw forecasts")
     for i, res in enumerate(forecast_data.get("list")):
-        x = i * 150
+        x = i * 250
         if i != 0:
-            epd.imageblack.vline(x, 195, 32, 0x00)  # x, y, h, c
+            epd.imageblack.vline(x, 195, 64, 0x00)  # x, y, h, c
 
         temp = res.get("main").get("temp")
         when = format_dt_txt(res.get("dt_txt"))
         weather_icon = res.get("weather")[0].get("icon")  # e.g. 02n
 
-        draw_icon(translate_weather_icon(weather_icon, 32), epd, x + 30, 200)
-        epd.imageblack.large_text(when, x + 70, 200, 1, 0x00)
+        draw_icon(translate_weather_icon(weather_icon, 32), epd, x + 50, 200, 2)
+        epd.imageblack.large_text(when, x + 122, 205, 2, 0x00)
         weather_temp_string = f"{temp:.1f}"
-        epd.imageblack.large_text(weather_temp_string, x + 70, 216, 1, 0x00)
-        draw_icon("degree_16_16.txt", epd, x + 70 + 8 * 4, 216)
+        epd.imageblack.large_text(weather_temp_string, x + 122, 229, 2, 0x00)
+        draw_icon("degree_16_16.txt", epd, x + 122 + 16 * 4, 229, 2)
 
 
 ##
@@ -220,7 +220,7 @@ def who_in_charge() -> str:
 def draw_bath_in_charge(epd: EPD_7in5_B):
     print("draw who is in charge of boiling bath")
     person_string = who_in_charge()
-    epd.imageblack.large_text(f"Bath  {person_string}", 20, 260, 3, 0x00)
+    epd.imageblack.large_text(f"Bath  {person_string}", 20, 280, 3, 0x00)
 
 
 def draw_trash(epd: EPD_7in5_B):
@@ -232,7 +232,7 @@ def draw_trash(epd: EPD_7in5_B):
         time_info["weekday_num"],
     )
     if trash:
-        epd.imageblack.large_text(f"Trash {trash}", 20, 305, 3, 0x00)
+        epd.imageblack.large_text(f"Trash {trash}", 20, 325, 3, 0x00)
 
 
 epd = EPD_7in5_B()
