@@ -220,7 +220,7 @@ def who_in_charge() -> str:
 def draw_bath_in_charge(epd: EPD_7in5_B):
     print("draw who is in charge of boiling bath")
     person_string = who_in_charge()
-    epd.imageblack.large_text(f"bath: {person_string}", 20, 260, 2, 0x00)
+    epd.imageblack.large_text(f"Bath  {person_string}", 20, 260, 3, 0x00)
 
 
 def draw_trash(epd: EPD_7in5_B):
@@ -232,7 +232,7 @@ def draw_trash(epd: EPD_7in5_B):
         time_info["weekday_num"],
     )
     if trash:
-        epd.imageblack.large_text(f"trash: {trash}", 20, 290, 2, 0x00)
+        epd.imageblack.large_text(f"Trash {trash}", 20, 305, 3, 0x00)
 
 
 epd = EPD_7in5_B()
