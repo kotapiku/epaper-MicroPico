@@ -176,7 +176,7 @@ def draw_weather(epd: EPD_7in5_B, owm: OpenWeatherMap, x: int, y: int):
         f"H:{temp_max:.1f}  L:{temp_min:.1f}", x + 5, y + 79, 2, 0x00
     )
     draw_icon("degree_32_32.txt", epd, x + 5 + 16 * 6, y + 79)
-    draw_icon("degree_32_32.txt", epd, x + 5 + 16 * 14, y + 70)
+    draw_icon("degree_32_32.txt", epd, x + 5 + 16 * 14, y + 79)
 
 
 # "2022-03-15 16:00:00" |-> "01" (UTC+9)
@@ -237,12 +237,23 @@ def draw_trash(epd: EPD_7in5_B, x: int, y: int):
         epd.imageblack.large_text(f"Trash {trash}", x, y, 3, 0x00)
 
 
-epd = EPD_7in5_B()
-epd.Clear()
+##
+## main
+##
 
 machine.Pin(23, machine.Pin.OUT).high()
 wlan = Wlan()
-wlan.connect()
+try:
+    wlan.connect()
+except:
+    print("---sleep---")
+    wlan.disconnect()
+    machine.Pin(23, machine.Pin.OUT).low()
+    machine.deepsleep(30 * 60 * 1000)
+
+epd = EPD_7in5_B()
+epd.Clear()
+
 
 owm = OpenWeatherMap("Tokyo")
 
