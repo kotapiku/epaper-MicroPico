@@ -225,6 +225,11 @@ def draw_bath_in_charge(epd: EPD_7in5_B, x: int, y: int):
     epd.imageblack.large_text(f"Bath  {person_string}", x, y, 3, 0x00)
 
 
+##
+## trash
+##
+
+
 def draw_trash(epd: EPD_7in5_B, x: int, y: int):
     time_info = local_date_time_getter()
     if time_info["hour"] > 8:
@@ -249,7 +254,7 @@ except:
     print("---sleep---")
     wlan.disconnect()
     machine.Pin(23, machine.Pin.OUT).low()
-    machine.deepsleep(30 * 60 * 1000)
+    machine.deepsleep(30 * 60 * 1000)  # wakeup after 30 min
 
 epd = EPD_7in5_B()
 epd.Clear()
